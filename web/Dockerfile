@@ -1,9 +1,8 @@
-# -------- Build stage --------
-FROM node:24.14-alpine AS build
+FROM node:24.14
 
 WORKDIR /app
 
-# package file s and dependencies
+# package files and dependencies
 COPY package*.json ./
 RUN npm ci 
 
@@ -13,8 +12,9 @@ COPY . .
 # build static app
 RUN npm run build
 
-# -------- Prod stage --------
-FROM nginx:alpine
+# expose the port
+EXPOSE 3000
 
-# copy built static files from build stage to nginx html folder
-COPY --from=build /app/dist /usr/share/nginx/html
+# serve the files
+CMD ["npm", "run", "start"]
+
