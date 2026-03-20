@@ -1,0 +1,64 @@
+---
+# Traefik entrypoint configuration
+# k3s auto-applies files in /var/lib/rancher/k3s/server/manifests/
+# Copy this file there on vm1, or apply with kubectl apply -f
+#
+# This reconfigures Traefik to listen on port 8081 instead of 80,
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        port: 8081
+        exposedPort: 8081
+
+---
+# Main Ingress resource to route traffic to frontend and api services
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: cloud-virt
+  annotations:
+    # Tell Traefik to use the web entrypoint (port 8081 configured above)
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    # Strip the /api prefix before forwarding to the api service
+    # Flask app receives /image instead of /api/image
+    traefik.ingress.kubernetes.io/router.middlewares: cloud-virt-strip-api-prefix@kubernetescrd
+spec:
+  rules:
+    - host: "herdoiza.maurice-cloud.fr"
+      http:
+        paths:
+          - path: /image
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+
+---
+# Middleware to strip /api prefix before forwarding to the Flask backend
+# Without this, a request to /api/image would arrive at Flask as /api/image
+# but Flask expects /image
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-prefix
+  namespace: cloud-virt
+spec:
+  stripPrefix:
+    prefixes:
+      - /api

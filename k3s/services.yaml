@@ -1,0 +1,31 @@
+---
+# API Service
+# Gives the api pods a stable internal DNS name: api.cloud-virt.svc.cluster.local
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: cloud-virt
+spec:
+  selector:
+    app: api        # matches pods with label app=api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080   # the port gunicorn listens on inside the container
+
+---
+# Frontend Service
+# Gives the frontend pods a stable internal DNS name: frontend.cloud-virt.svc.cluster.local
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: cloud-virt
+spec:
+  selector:
+    app: frontend   # matches pods with label app=frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000   # the port npm run start listens on inside the container

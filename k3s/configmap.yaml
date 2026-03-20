@@ -1,0 +1,11 @@
+# frontend knows where to find the api
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: cloud-virt
+data:
+  config.json: |
+    {
+      "endpoint": "https://herdoiza.maurice-cloud.fr"
+    }
