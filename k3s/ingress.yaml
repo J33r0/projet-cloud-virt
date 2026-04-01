@@ -11,6 +11,10 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    service:
+      type: LoadBalancer
+      spec:
+        loadBalancerIP: ${FLOATING_IP}
     ports:
       web:
         port: 8081

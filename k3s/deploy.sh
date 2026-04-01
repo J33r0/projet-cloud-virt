@@ -12,12 +12,22 @@ GHCR_SERVER="ghcr.io"
 echo "Creating namespace..."
 kubectl apply -f k3s/namespace.yaml
 
-
-echo "Creating app-secrets from ${ENV_FILE}..."
 if [ ! -f "$ENV_FILE" ]; then
   echo "ERROR: ${ENV_FILE} not found. Copy k3s/.env.example to k3s/.env and fill it in."
   exit 1
 fi
+
+if ! command -v envsubst >/dev/null 2>&1; then
+  echo "ERROR: envsubst is required but not installed. Install gettext-base (or gettext)."
+  exit 1
+fi
+
+set -a
+source "$ENV_FILE"
+set +a
+
+
+echo "Creating app-secrets from ${ENV_FILE}..."
 kubectl create secret generic app-secrets \
   --from-env-file="$ENV_FILE" \
   --namespace="$NAMESPACE" \
@@ -36,6 +46,9 @@ kubectl create secret docker-registry ghcr-pull-secret \
   --namespace="$NAMESPACE" \
   --dry-run=client -o yaml | kubectl apply -f -
 
+echo "Applying MetalLB configuration..."
+envsubst < k3s/metallb-config.yaml | kubectl apply -f -
+
 
 echo "Applying ConfigMap..."
 kubectl apply -f k3s/configmap.yaml
@@ -52,7 +65,7 @@ kubectl apply -f k3s/services.yaml
 
 
 echo "Applying ingress..."
-kubectl apply -f k3s/ingress.yaml
+envsubst < k3s/ingress.yaml | kubectl apply -f -
 
 echo ""
 echo "Done. Waiting for pods to become ready..."
