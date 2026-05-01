@@ -1,0 +1,43 @@
+name: Deploy to k3s cluster
+
+on:
+  # Runs after both build workflows finish on main
+  workflow_run:
+    workflows:
+      - "Build & Push API image"
+      - "Build & Push Web image"
+    branches:
+      - main
+    types:
+      - completed
+
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    # Only deploy when the triggering workflow succeeded 
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout k3s manifests
+        uses: actions/checkout@v4
+
+      # Roll out updated images by forcing a new pod rollout.
+      - name: Rollout restart via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM1_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: bastion.maurice-cloud.fr
+          proxy_username: student
+          proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            kubectl rollout restart deployment/api      -n cloud-virt
+            kubectl rollout restart deployment/worker   -n cloud-virt
+            kubectl rollout restart deployment/frontend -n cloud-virt
+            kubectl rollout status  deployment/api      -n cloud-virt --timeout=120s
+            kubectl rollout status  deployment/worker   -n cloud-virt --timeout=120s
+            kubectl rollout status  deployment/frontend -n cloud-virt --timeout=120s
