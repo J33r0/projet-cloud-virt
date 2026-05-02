@@ -1,0 +1,59 @@
+---
+- name: Ensure required CLI tools are present
+  ansible.builtin.apt:
+    name:
+      - gettext-base   # for `envsubst` used by deploy.sh
+      - rsync          # for the synchronize task below
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Symlink kubectl -> k3s (deploy.sh expects kubectl in PATH)
+  ansible.builtin.file:
+    src: /usr/local/bin/k3s
+    dest: /usr/local/bin/kubectl
+    state: link
+    force: true
+
+- name: Create remote workspace
+  ansible.builtin.file:
+    path: /opt/cloud-virt/k3s
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+# sync the k3s directory to the VM
+- name: Sync k3s directory to primary
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../k3s/"
+    dest: /opt/cloud-virt/k3s/
+    delete: false
+  become: false
+
+# render k3s/.env from vault vars on the remote
+- name: Render k3s/.env from vault
+  ansible.builtin.template:
+    src: env.j2
+    dest: /opt/cloud-virt/k3s/.env
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+  no_log: true
+
+- name: Run deploy.sh
+  ansible.builtin.shell: |
+    set -o pipefail
+    ./deploy.sh
+  args:
+    chdir: /opt/cloud-virt/k3s
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  become: false
+  register: deploy_result
+  changed_when: "'unchanged' not in deploy_result.stdout"
+
+- name: Show deploy.sh output
+  ansible.builtin.debug:
+    var: deploy_result.stdout_lines

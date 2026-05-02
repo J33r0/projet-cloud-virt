@@ -1,0 +1,56 @@
+---
+- name: Teardown k3s and application workspace
+  hosts: k3s_cluster
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check if k3s-uninstall.sh exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s-uninstall.sh
+      register: k3s_uninstall_script
+
+    - name: Run k3s-uninstall.sh
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      when: k3s_uninstall_script.stat.exists
+      register: uninstall_output
+      changed_when: uninstall_output.rc == 0
+
+    - name: Remove application workspace (/opt/cloud-virt)
+      ansible.builtin.file:
+        path: /opt/cloud-virt
+        state: absent
+
+    - name: Ensure leftover Rancher, K3s, and Kubernetes directories are completely removed
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/rancher
+        - /etc/rancher
+        - /var/lib/kubelet
+        - /var/run/k3s
+        - /etc/cni
+        - /opt/cni
+
+- name: Teardown keepalived
+  hosts: k3s_cluster
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop and disable keepalived
+      ansible.builtin.systemd:
+        name: keepalived
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove keepalived package
+      ansible.builtin.apt:
+        name: keepalived
+        state: absent
+        purge: true
+
+    - name: Remove keepalived configuration
+      ansible.builtin.file:
+        path: /etc/keepalived/keepalived.conf
+        state: absent

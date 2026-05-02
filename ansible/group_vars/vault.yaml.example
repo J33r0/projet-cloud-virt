@@ -1,0 +1,24 @@
+---
+# Copy this to `vault.yaml` (same directory) and encrypt it:
+#
+#   cp group_vars/vault.yaml.example group_vars/vault.yaml
+#   ansible-vault encrypt group_vars/vault.yaml
+#
+# When running playbooks, pass --ask-vault-pass (or set ANSIBLE_VAULT_PASSWORD_FILE).
+
+# application secrets these end up in the `app-secrets` Kubernetes Secret
+vault_celery_broker_url:     "redis://redis:6379/0"
+vault_s3_endpoint_url:       "http://minio:9000"
+vault_aws_region_name:       "us-east-1"
+vault_aws_access_key_id:     "your-aws-acces-key"
+vault_aws_secret_access_key: "your-aws-secret-acces-key"
+vault_s3_bucket_name:        "your-bucket_name"
+vault_github_pat: "your-github-pat"
+vault_floating_ip: "0.0.0.0"
+
+# shared secret used by all k3s servers to join the cluster
+# generate one with: openssl rand -hex 32
+vault_k3s_token: "REPLACE_ME_openssl_rand_hex_32"
+
+# keepalived password
+vault_keepalived_pass: "your-very-secure-password"

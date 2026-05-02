@@ -1,0 +1,48 @@
+---
+- name: Update k3s manifests
+  hosts: k3s_primary
+  become: true
+
+  vars:
+    manifest_source_dir: "{{ playbook_dir }}/../../k3s"
+    manifest_dest_dir: "/opt/cloud-virt/k3s"
+
+  tasks:
+    - name: Create manifest destination directory
+      ansible.builtin.file:
+        path: "{{ manifest_dest_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Sync k3s manifest files to primary node
+      ansible.builtin.synchronize:
+        src: "{{ manifest_source_dir }}/"
+        dest: "{{ manifest_dest_dir }}/"
+        delete: false
+        perms: true
+      delegate_to: localhost
+      become: false
+
+    - name: Substitute variables in manifests
+      ansible.builtin.shell: |
+        for file in {{ manifest_dest_dir }}/*.yaml; do
+          envsubst < "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+        done
+      args:
+        executable: /bin/bash
+      environment:
+        FLOATING_IP: "{{ floating_ip }}"
+      changed_when: false
+
+    - name: Apply k3s manifests
+      ansible.builtin.shell: |
+        set -o pipefail
+        /usr/local/bin/k3s kubectl apply -f {{ manifest_dest_dir }}/
+      args:
+        executable: /bin/bash
+      register: apply_result
+      changed_when: "'created' in apply_result.stdout or 'configured' in apply_result.stdout"
+
+    - name: Display manifest apply results
+      ansible.builtin.debug:
+        msg: "{{ apply_result.stdout }}"

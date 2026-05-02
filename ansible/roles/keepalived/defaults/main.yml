@@ -1,0 +1,2 @@
+---
+keepalived_auth_pass: "{{ vault_keepalived_pass }}"

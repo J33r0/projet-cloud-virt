@@ -1,0 +1,28 @@
+---
+- name: Ensure keepalived package is installed
+  apt:
+    name: keepalived
+    state: present
+    update_cache: yes
+
+- name: Ensure curl is installed (healthcheck)
+  apt:
+    name: curl
+    state: present
+    update_cache: yes
+
+- name: Render keepalived configuration
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart keepalived
+
+- name: Ensure keepalived service is enabled and started
+  systemd:
+    name: keepalived
+    enabled: yes
+    state: started
+    daemon_reload: yes

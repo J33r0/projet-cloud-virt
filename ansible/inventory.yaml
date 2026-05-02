@@ -1,0 +1,25 @@
+---
+# to add a node: drop it into k3s_secondary, add a matching ~/.ssh/config entry,
+# then run `ansible-playbook site.yml --limit <new-host>`.
+
+all:
+  children:
+    k3s_primary:
+      # runs `--cluster-init` on first install to bootstrap
+      hosts:
+        vm1:
+
+    k3s_secondary:
+      # Every other server joins via `--server https://<primary>:6443`.
+      hosts:
+        vm2:
+        vm3:
+
+    k3s_cluster:
+      children:
+        k3s_primary:
+        k3s_secondary:
+
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3
