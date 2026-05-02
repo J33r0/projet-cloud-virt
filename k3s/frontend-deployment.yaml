@@ -22,6 +22,26 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
+      # Evict pods after 30s instead of the default 300s when a node becomes
+      # NotReady or Unreachable. Speeds up recovery on node failure.
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+      # Spread replicas across nodes so a single node failure cannot take
+      # down all frontend pods at once.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: frontend
       containers:
         - name: frontend
           image: ghcr.io/j33r0/projet-cloud-virt/web:latest

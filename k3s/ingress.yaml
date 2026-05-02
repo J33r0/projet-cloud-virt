@@ -1,9 +1,4 @@
 ---
-# Traefik entrypoint configuration
-# k3s auto-applies files in /var/lib/rancher/k3s/server/manifests/
-# Copy this file there on vm1, or apply with kubectl apply -f
-#
-# This reconfigures Traefik to listen on port 8081 instead of 80,
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:
@@ -11,27 +6,39 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    deployment:
+      replicas: 2
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: traefik
+            topologyKey: kubernetes.io/hostname
     service:
-      type: LoadBalancer
-      spec:
-        loadBalancerIP: ${FLOATING_IP}
+      type: ClusterIP
     ports:
       web:
         port: 8081
         exposedPort: 8081
+        hostPort: 8081      # bind to host port so VIP traffic and keepalived /ping reach Traefik
+      # Disable the default websecure port
+      websecure:
+        expose:
+          default: false
+    # Enable Traefik's /ping endpoint so keepalived's health check works
+    ping:
+      enabled: true
+      entryPoint: web
 
 ---
-# Main Ingress resource to route traffic to frontend and api services
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: app-ingress
   namespace: cloud-virt
   annotations:
-    # Tell Traefik to use the web entrypoint (port 8081 configured above)
     traefik.ingress.kubernetes.io/router.entrypoints: web
-    # Strip the /api prefix before forwarding to the api service
-    # Flask app receives /image instead of /api/image
     traefik.ingress.kubernetes.io/router.middlewares: cloud-virt-strip-api-prefix@kubernetescrd
 spec:
   rules:

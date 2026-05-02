@@ -5,15 +5,15 @@
 set -e  # exit immediately on any error
 
 NAMESPACE="cloud-virt"
-ENV_FILE="k3s/.env"
+ENV_FILE=".env"
 GITHUB_USER="j33r0"
 GHCR_SERVER="ghcr.io"
 
 echo "Creating namespace..."
-kubectl apply -f k3s/namespace.yaml
+kubectl apply -f namespace.yaml
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo "ERROR: ${ENV_FILE} not found. Copy k3s/.env.example to k3s/.env and fill it in."
+  echo "ERROR: ${ENV_FILE} not found. Copy .env.example to .env and fill it in."
   exit 1
 fi
 
@@ -46,26 +46,23 @@ kubectl create secret docker-registry ghcr-pull-secret \
   --namespace="$NAMESPACE" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-echo "Applying MetalLB configuration..."
-envsubst < k3s/metallb-config.yaml | kubectl apply -f -
-
 
 echo "Applying ConfigMap..."
-kubectl apply -f k3s/configmap.yaml
+kubectl apply -f configmap.yaml
 
 
 echo "Applying deployments..."
-kubectl apply -f k3s/api-deployment.yaml
-kubectl apply -f k3s/worker-deployment.yaml
-kubectl apply -f k3s/frontend-deployment.yaml
+kubectl apply -f api-deployment.yaml
+kubectl apply -f worker-deployment.yaml
+kubectl apply -f frontend-deployment.yaml
 
 
 echo "Applying services..."
-kubectl apply -f k3s/services.yaml
+kubectl apply -f services.yaml
 
 
 echo "Applying ingress..."
-envsubst < k3s/ingress.yaml | kubectl apply -f -
+envsubst < ingress.yaml | kubectl apply -f -
 
 echo ""
 echo "Done. Waiting for pods to become ready..."
